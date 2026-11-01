@@ -14,6 +14,7 @@ import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as CaretakerRouteImport } from './routes/caretaker'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as MetricsRouteImport } from './routes/metrics'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -44,6 +45,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MetricsRoute = MetricsRouteImport.update({
+  id: '/metrics',
+  path: '/metrics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NotificationsRoute = NotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/caretaker': typeof CaretakerRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/metrics': typeof MetricsRoute
   '/notifications': typeof NotificationsRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/caretaker': typeof CaretakerRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/metrics': typeof MetricsRoute
   '/notifications': typeof NotificationsRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/caretaker': typeof CaretakerRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/metrics': typeof MetricsRoute
   '/notifications': typeof NotificationsRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/caretaker'
     | '/dashboard'
     | '/login'
+    | '/metrics'
     | '/notifications'
     | '/reports'
     | '/settings'
@@ -118,6 +128,7 @@ export interface FileRouteTypes {
     | '/caretaker'
     | '/dashboard'
     | '/login'
+    | '/metrics'
     | '/notifications'
     | '/reports'
     | '/settings'
@@ -129,6 +140,7 @@ export interface FileRouteTypes {
     | '/caretaker'
     | '/dashboard'
     | '/login'
+    | '/metrics'
     | '/notifications'
     | '/reports'
     | '/settings'
@@ -141,6 +153,7 @@ export interface RootRouteChildren {
   CaretakerRoute: typeof CaretakerRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
+  MetricsRoute: typeof MetricsRoute
   NotificationsRoute: typeof NotificationsRoute
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
@@ -184,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/metrics': {
+      id: '/metrics'
+      path: '/metrics'
+      fullPath: '/metrics'
+      preLoaderRoute: typeof MetricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/notifications': {
       id: '/notifications'
       path: '/notifications'
@@ -221,6 +241,7 @@ const rootRouteChildren: RootRouteChildren = {
   CaretakerRoute: CaretakerRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
+  MetricsRoute: MetricsRoute,
   NotificationsRoute: NotificationsRoute,
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
