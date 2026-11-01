@@ -54,8 +54,7 @@ function Landing() {
               Smart Care for <span className="text-primary">Healthier Living</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg text-muted-foreground">
-              AYURA is your intelligent healthcare companion — tracking daily routines,
-              giving AI-powered lifestyle insights, and keeping caretakers connected.
+              AYURA reads your heart reports, explains them in simple words, and gives you a diet and exercise plan, with daily tasks, reminders and an SOS button.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/signup">
@@ -138,17 +137,16 @@ function Landing() {
         <div>
           <SectionHeader align="left" eyebrow="AI Health Monitoring" title="Insights that learn your routine" />
           <p className="mt-4 text-muted-foreground">
-            AYURA quietly studies your sleep, mood and movement patterns to predict possible
-            health risks before they happen — and explains them in plain language.
+            AYURA reads your cholesterol, blood pressure, sugar and heart test values, predicts your heart risk with a trained model, and explains it in plain language.
           </p>
           <ul className="mt-6 space-y-3">
-            {["Risk prediction with explanations", "Weekly health score", "Trend graphs and summaries"].map((x) => (
+            {["Heart risk prediction with reasons", "Diet and exercise plan", "Risk trend over time"].map((x) => (
               <li key={x} className="flex items-center gap-3"><Check className="h-5 w-5 text-success" />{x}</li>
             ))}
           </ul>
         </div>
         <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground"><Activity className="h-4 w-4 text-primary" /> Weekly score</div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground"><Activity className="h-4 w-4 text-primary" /> Example</div>
           <div className="mt-2 text-5xl font-bold">87<span className="text-2xl text-muted-foreground">/100</span></div>
           <div className="mt-6 grid grid-cols-7 items-end gap-2 h-32">
             {[60, 72, 65, 80, 75, 90, 87].map((v, i) => (
@@ -156,7 +154,7 @@ function Landing() {
             ))}
           </div>
           <div className="mt-2 grid grid-cols-7 text-center text-xs text-muted-foreground">
-            {["M","T","W","T","F","S","S"].map((d,i)=>(<div key={i}>{d}</div>))}
+            {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (<div key={i}>{d}</div>))}
           </div>
         </div>
       </section>
@@ -166,11 +164,11 @@ function Landing() {
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 lg:grid-cols-2 lg:px-8">
           <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
             <div className="flex items-center justify-between">
-              <div className="font-semibold">Mom — Today</div>
+              <div className="font-semibold">Example</div>
               <span className="rounded-full bg-success/15 px-2 py-0.5 text-xs font-medium text-success">All good</span>
             </div>
             <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-              {[{l:"Sleep",v:"7.5h"},{l:"Meds",v:"3/3"},{l:"Mood",v:"😊"}].map(x=>(
+              {[{ l: "Heart risk", v: "Low" }, { l: "Tasks", v: "3/4" }, { l: "Streak", v: "5 days" }].map(x => (
                 <div key={x.l} className="rounded-xl bg-muted p-3">
                   <div className="text-xs text-muted-foreground">{x.l}</div>
                   <div className="mt-1 text-lg font-semibold">{x.v}</div>
@@ -181,8 +179,7 @@ function Landing() {
           <div>
             <SectionHeader align="left" eyebrow="Caretaker Support" title="Peace of mind for the whole family" />
             <p className="mt-4 text-muted-foreground">
-              Caretakers get a dedicated dashboard with daily summaries, mood trends,
-              medication adherence and instant emergency alerts.
+              Your family member gets a one-page summary of your latest heart check, today's tasks and reminders, and the SOS button shows their number in an emergency.
             </p>
           </div>
         </div>
@@ -210,7 +207,7 @@ function Landing() {
             ].map((t) => (
               <div key={t.n} className="rounded-2xl border border-border bg-card p-6 shadow-card">
                 <div className="flex gap-1 text-warning">
-                  {Array.from({length:5}).map((_,i)=>(<Star key={i} className="h-4 w-4 fill-current" />))}
+                  {Array.from({ length: 5 }).map((_, i) => (<Star key={i} className="h-4 w-4 fill-current" />))}
                 </div>
                 <p className="mt-3 text-foreground">"{t.q}"</p>
                 <div className="mt-4 text-sm font-semibold">{t.n}</div>

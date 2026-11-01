@@ -1,109 +1,163 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/ayura/AppShell";
-import { StatCard } from "@/components/ayura/StatCard";
-import { Moon, Smile, Pill, AlertTriangle, Bell, Sparkles } from "lucide-react";
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar } from "recharts";
+import { Button } from "@/components/ui/button";
+import { HeartPulse, Phone, CheckCircle2, Circle, Bell, AlertTriangle, Printer } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 
 export const Route = createFileRoute("/caretaker")({
-  head: () => ({ meta: [{ title: "Caretaker Dashboard — AYURA" }, { name: "description", content: "Monitor your loved one's health." }] }),
+  head: () => ({ meta: [{ title: "For my caregiver - AYURA" }] }),
   component: Caretaker,
 });
 
-const sleep = [{d:"Mon",h:6.5},{d:"Tue",h:7.2},{d:"Wed",h:6.8},{d:"Thu",h:7.5},{d:"Fri",h:8},{d:"Sat",h:7.8},{d:"Sun",h:7.5}];
-const mood = [{d:"Mon",v:6},{d:"Tue",v:7},{d:"Wed",v:5},{d:"Thu",v:8},{d:"Fri",v:8},{d:"Sat",v:9},{d:"Sun",v:8}];
-const meds = [{d:"Mon",v:100},{d:"Tue",v:100},{d:"Wed",v:67},{d:"Thu",v:100},{d:"Fri",v:100},{d:"Sat",v:100},{d:"Sun",v:100}];
+const STATUS_STYLE: Record<string, string> = {
+  normal: "bg-success/15 text-success",
+  borderline: "bg-warning/15 text-warning",
+  high: "bg-destructive/15 text-destructive",
+  critical: "bg-destructive text-destructive-foreground",
+};
+const RISK_STYLE: Record<string, string> = {
+  low: STATUS_STYLE.normal,
+  moderate: STATUS_STYLE.borderline,
+  high: STATUS_STYLE.high,
+};
 
 function Caretaker() {
+  const [user, setUser] = useState<any>(null);
+  const [analyses, setAnalyses] = useState<any[]>([]);
+  const [today, setToday] = useState<any>({ tasks: [], streak: 0 });
+  const [reminders, setReminders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      apiFetch("/auth/me").then(setUser),
+      apiFetch("/analysis").then(setAnalyses),
+      apiFetch("/tasks/today").then(setToday),
+      apiFetch("/reminders").then(setReminders),
+    ])
+      .catch(() => { })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const latest = analyses[analyses.length - 1]; // GET /analysis is oldest first
+  const problems = latest ? latest.flags.filter((f: any) => f.status !== "normal") : [];
+  const done = today.tasks.filter((t: any) => t.done).length;
+  const active = reminders
+    .filter((r) => r.active)
+    .sort((a, b) => a.time_of_day.localeCompare(b.time_of_day));
+
+  if (loading) {
+    return <AppShell title="For my caregiver"><p className="text-muted-foreground">Loading…</p></AppShell>;
+  }
+
   return (
-    <AppShell title="Caretaker Dashboard">
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-gradient-hero p-6 lg:p-8">
-          <div>
-            <div className="text-sm font-medium text-primary">Monitoring</div>
-            <h2 className="mt-1 text-3xl font-bold tracking-tight">Mom — Lakshmi Devi, 72</h2>
-            <p className="mt-1 text-muted-foreground">All vitals look healthy today.</p>
-          </div>
-          <span className="rounded-full bg-success/15 px-4 py-2 text-sm font-semibold text-success">All good</span>
-        </div>
+    <AppShell title="For my caregiver">
+      <p className="mb-6 max-w-2xl text-base text-muted-foreground">
+        A one-page summary to show or print for your family member or doctor.
+      </p>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard icon={Moon} label="Avg sleep" value="7.4h" sub="This week" tone="primary" />
-          <StatCard icon={Smile} label="Mood avg" value="7.3/10" sub="Stable" tone="success" />
-          <StatCard icon={Pill} label="Med adherence" value="95%" sub="1 missed" tone="warning" />
-          <StatCard icon={AlertTriangle} label="Alerts" value="0" sub="Last 24h" tone="success" />
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Chart title="Sleep trends">
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={sleep}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.01 210)" />
-                <XAxis dataKey="d" /><YAxis /><Tooltip contentStyle={{ borderRadius: 12 }} />
-                <Line type="monotone" dataKey="h" stroke="oklch(0.62 0.11 195)" strokeWidth={3} dot={{ r: 5 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </Chart>
-          <Chart title="Mood tracking">
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={mood}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.01 210)" />
-                <XAxis dataKey="d" /><YAxis /><Tooltip contentStyle={{ borderRadius: 12 }} />
-                <Line type="monotone" dataKey="v" stroke="oklch(0.66 0.13 160)" strokeWidth={3} dot={{ r: 5 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </Chart>
-          <Chart title="Medication adherence (%)">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={meds}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.01 210)" />
-                <XAxis dataKey="d" /><YAxis /><Tooltip contentStyle={{ borderRadius: 12 }} />
-                <Bar dataKey="v" fill="oklch(0.62 0.11 195)" radius={[8,8,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </Chart>
-
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-            <div className="flex items-center gap-2"><Bell className="h-5 w-5 text-primary" /><h3 className="font-semibold">Notification center</h3></div>
-            <ul className="mt-4 space-y-3">
-              {[
-                { t: "Missed evening BP medication", time: "Wed 9:15 PM", tone: "warning" },
-                { t: "Logged 8h sleep", time: "Fri 8:00 AM", tone: "success" },
-                { t: "Walked 2.4 km", time: "Sat 6:30 AM", tone: "success" },
-              ].map((n,i)=>(
-                <li key={i} className="flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <span className={`h-2 w-2 rounded-full ${n.tone === "warning" ? "bg-warning" : "bg-success"}`} />
-                    <span>{n.t}</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">{n.time}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Caregiver contact */}
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-          <div className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /><h3 className="font-semibold">AI recommendations</h3></div>
-          <ul className="mt-4 grid gap-3 md:grid-cols-3">
-            {[
-              "Encourage a 15-min morning walk to maintain mood improvements.",
-              "Set a Wednesday evening reminder — that's when meds were missed.",
-              "Sunlight exposure recommended for vitamin D support.",
-            ].map((r,i)=>(
-              <li key={i} className="rounded-xl bg-muted/50 p-4 text-sm">{r}</li>
+          <h3 className="flex items-center gap-2 text-lg font-semibold"><Phone className="h-5 w-5 text-primary" /> Caregiver</h3>
+          {user?.caregiver_phone ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="text-xl font-semibold">{user.caregiver_name || "Caregiver"}</div>
+                <div className="text-base text-muted-foreground">{user.caregiver_phone}</div>
+              </div>
+              <Button asChild className="h-12 bg-gradient-primary px-6 text-base shadow-soft">
+                <a href={`tel:${user.caregiver_phone}`}><Phone className="mr-2 h-5 w-5" /> Call now</a>
+              </Button>
+            </div>
+          ) : (
+            <p className="mt-4 text-muted-foreground">
+              No caregiver added yet. <Link to="/settings" className="font-medium text-primary underline">Add one in Settings</Link>.
+            </p>
+          )}
+          {user && (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Patient: {user.name}, {user.age} years, {user.sex === "F" ? "female" : "male"}
+            </p>
+          )}
+        </div>
+
+        {/* Latest heart check */}
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+          <h3 className="flex items-center gap-2 text-lg font-semibold"><HeartPulse className="h-5 w-5 text-primary" /> Latest heart check</h3>
+          {!latest ? (
+            <p className="mt-4 text-muted-foreground">
+              No report analysed yet. <Link to="/reports" className="font-medium text-primary underline">Upload one</Link>.
+            </p>
+          ) : (
+            <>
+              <div className="mt-4 flex items-center gap-3">
+                <span className={`rounded-full px-4 py-1 text-base font-semibold ${RISK_STYLE[latest.risk_level] ?? ""}`}>
+                  {latest.risk_level.toUpperCase()} RISK
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {Math.round(latest.risk_score * 100)}% · {new Date(latest.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                </span>
+              </div>
+              {problems.length === 0 ? (
+                <p className="mt-4 flex items-center gap-2 text-base"><CheckCircle2 className="h-5 w-5 text-success" /> All values in the normal range.</p>
+              ) : (
+                <ul className="mt-4 space-y-2">
+                  {problems.map((f: any) => (
+                    <li key={f.label} className="flex items-center justify-between rounded-xl bg-muted/50 p-3">
+                      <span className="text-base">{f.label}: <b>{f.value}</b></span>
+                      <span className={`rounded-full px-3 py-0.5 text-sm font-medium ${STATUS_STYLE[f.status] ?? ""}`}>{f.status}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {problems.some((f: any) => f.status === "critical") && (
+                <p className="mt-4 flex items-center gap-2 rounded-xl bg-destructive p-3 text-base font-semibold text-destructive-foreground">
+                  <AlertTriangle className="h-5 w-5" /> A critical value was found. Please see a doctor soon.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Today's tasks */}
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+          <h3 className="flex items-center gap-2 text-lg font-semibold"><CheckCircle2 className="h-5 w-5 text-primary" /> Today's tasks</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{done} of {today.tasks.length} done · {today.streak}-day streak</p>
+          <ul className="mt-4 space-y-2">
+            {today.tasks.map((t: any) => (
+              <li key={t.id} className="flex items-center gap-3 rounded-xl bg-muted/50 p-3 text-base">
+                {t.done ? <CheckCircle2 className="h-5 w-5 shrink-0 text-success" /> : <Circle className="h-5 w-5 shrink-0 text-muted-foreground" />}
+                <span className={t.done ? "text-muted-foreground line-through" : ""}>{t.title}</span>
+              </li>
             ))}
           </ul>
         </div>
-      </div>
-    </AppShell>
-  );
-}
 
-function Chart({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-      <h3 className="font-semibold">{title}</h3>
-      <div className="mt-4">{children}</div>
-    </div>
+        {/* Reminders */}
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+          <h3 className="flex items-center gap-2 text-lg font-semibold"><Bell className="h-5 w-5 text-primary" /> Daily reminders</h3>
+          {active.length === 0 ? (
+            <p className="mt-4 text-muted-foreground">
+              No reminders yet. <Link to="/notifications" className="font-medium text-primary underline">Add one</Link>.
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {active.map((r) => (
+                <li key={r.id} className="flex items-center justify-between rounded-xl bg-muted/50 p-3 text-base">
+                  <span>{r.title}</span>
+                  <span className="font-medium">{r.time_of_day}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      <Button variant="outline" onClick={() => window.print()} className="mt-6 h-12 text-base">
+        <Printer className="mr-2 h-5 w-5" /> Print this summary
+      </Button>
+    </AppShell>
   );
 }

@@ -1,166 +1,126 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { apiFetch, getUser } from "@/lib/api";
+import { HeartPulse, Activity, CheckCircle2, Flame, Clock, Plus } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
+import { apiFetch } from "@/lib/api";
+import { speak } from "@/lib/voice";
 import { AppShell } from "@/components/ayura/AppShell";
 import { StatCard } from "@/components/ayura/StatCard";
-import { Moon, Smile, Activity, Pill, Droplet, Sparkles, AlertTriangle, CalendarDays, Clock, Plus } from "lucide-react";
-import {
-  AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, BarChart, Bar,
-} from "recharts";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — AYURA" }] }),
+  head: () => ({ meta: [{ title: "Dashboard - AYURA" }] }),
   component: Dashboard,
 });
 
-const sleepData = [
-  { d: "Mon", h: 6.5 }, { d: "Tue", h: 7.2 }, { d: "Wed", h: 6.8 },
-  { d: "Thu", h: 7.5 }, { d: "Fri", h: 8.0 }, { d: "Sat", h: 7.8 }, { d: "Sun", h: 7.5 },
-];
-const moodData = [
-  { d: "Mon", v: 6 }, { d: "Tue", v: 7 }, { d: "Wed", v: 5 },
-  { d: "Thu", v: 8 }, { d: "Fri", v: 8 }, { d: "Sat", v: 9 }, { d: "Sun", v: 8 },
-];
+const RISK_TONE = { low: "success", moderate: "warning", high: "warning" } as const;
 
 function Dashboard() {
-  const [data, setData] = useState<any>(null);
-  const [logType, setLogType] = useState("Heart Rate");
-  const [logValue, setLogValue] = useState("");
   const [user, setUser] = useState<any>(null);
-  
-  const fetchDashboardData = () => {
-    apiFetch("/api/dashboard").then(setData).catch(() => {});
+  const [analyses, setAnalyses] = useState<any[]>([]);
+  const [today, setToday] = useState<any>({ tasks: [], streak: 0 });
+  const [reminders, setReminders] = useState<any[]>([]);
+  const [bp, setBp] = useState({ systolic_bp: "", diastolic_bp: "", heart_rate: "" });
+  const [checking, setChecking] = useState(false);
+
+  const load = () => {
+    apiFetch("/auth/me").then(setUser).catch(() => { });
+    apiFetch("/analysis").then(setAnalyses).catch(() => { });
+    apiFetch("/tasks/today").then(setToday).catch(() => { });
+    apiFetch("/reminders").then(setReminders).catch(() => { });
+  };
+  useEffect(load, []);
+
+  const latest = analyses[analyses.length - 1];          // GET /analysis is oldest first
+  const done = today.tasks.filter((t: any) => t.done).length;
+  const now = new Date().toTimeString().slice(0, 5);    // "HH:MM"
+  const active = reminders.filter((r) => r.active).sort((a, b) => a.time_of_day.localeCompare(b.time_of_day));
+  const next = active.find((r) => r.time_of_day >= now) ?? active[0];
+  const trend = analyses.map((a) => ({
+    date: new Date(a.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+    risk: Math.round(a.risk_score * 100),
+    bp: a.inputs?.systolic_bp ?? null,
+  }));
+
+  const complete = async (id: string) => {
+    await apiFetch(`/tasks/${id}/complete`, { method: "POST" });
+    apiFetch("/tasks/today").then(setToday);
   };
 
-  useEffect(() => { 
-    // Safely run client-side to prevent SSR crashes
-    setUser(getUser());
-    fetchDashboardData(); 
-  }, []);
-
-  const handleLogSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    
-    if (!logValue) {
-      alert("Please enter a value first!");
-      return;
-    }
-
+  const quickCheck = async () => {
+    const clean = Object.fromEntries(Object.entries(bp).filter(([, v]) => v !== "").map(([k, v]) => [k, Number(v)]));
+    if (!Object.keys(clean).length) return;
+    setChecking(true);
     try {
-      const response = await fetch("http://localhost:5000/api/logs", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
-        },
-        body: JSON.stringify({ type: logType, value: Number(logValue) }) 
-      });
-
-      if (response.ok) {
-        setLogValue("");
-        fetchDashboardData(); 
-        alert("Success! Health metric saved.");
-      } else {
-        const errText = await response.text();
-        alert(`Backend Error: ${errText}`);
-      }
-    } catch (err: any) {
-      alert(`Network Error: ${err.message}`);
+      const report = await apiFetch("/reports/manual", { method: "POST", body: JSON.stringify(clean) });
+      const result = await apiFetch(`/analysis/report/${report.id}`, { method: "POST" });
+      const problems = result.flags.filter((f: any) => f.status !== "normal");
+      speak(problems.length ? `Please note: ${problems.map((f: any) => `${f.label} is ${f.status}`).join(", ")}.` : "Your readings look normal. Well done.");
+      setBp({ systolic_bp: "", diastolic_bp: "", heart_rate: "" });
+      load();
+    } finally {
+      setChecking(false);
     }
   };
 
-  const displayName = data?.user?.name || user?.name || "there";
-  const recentSleep = data?.healthLogs?.filter((x:any) => x.type === "sleep").slice(-1)[0];
-  
   return (
-    <AppShell title="Dashboard">
-      <div className="space-y-6">
-        <div className="rounded-3xl bg-gradient-hero p-6 lg:p-8">
-          <div className="text-sm font-medium text-primary">Good morning, {displayName} ☀️</div>
-          <h2 className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">You're doing wonderfully today.</h2>
+    <AppShell title={user ? `Namaste, ${user.name}` : "Dashboard"}>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon={HeartPulse} label="Heart risk" value={latest ? latest.risk_level.toUpperCase() : "No report yet"}
+          sub={latest ? `${Math.round(latest.risk_score * 100)}% risk score` : "Upload a report to start"}
+          tone={latest ? RISK_TONE[latest.risk_level as keyof typeof RISK_TONE] : "primary"} />
+        <StatCard icon={Activity} label="Blood pressure"
+          value={latest?.inputs?.systolic_bp ? `${latest.inputs.systolic_bp}/${latest.inputs.diastolic_bp ?? "-"}` : "-"} sub="mm Hg, latest" />
+        <StatCard icon={CheckCircle2} label="Today's tasks" value={`${done}/${today.tasks.length}`} tone="success" />
+        <StatCard icon={Flame} label="Streak" value={`${today.streak} days`} tone="accent"
+          sub={next ? `Next reminder: ${next.title} at ${next.time_of_day}` : "No reminders yet"} />
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+          <h3 className="text-lg font-semibold">Heart risk over time</h3>
+          {trend.length < 2 ? (
+            <p className="mt-4 text-muted-foreground">Analyse two or more reports to see your trend.</p>
+          ) : (
+            <div className="mt-4 h-64">
+              <ResponsiveContainer>
+                <LineChart data={trend}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" /><YAxis />
+                  <Tooltip />
+                  <Line dataKey="risk" name="Risk %" stroke="hsl(var(--primary))" strokeWidth={3} />
+                  <Line dataKey="bp" name="Upper BP" stroke="#ef4444" strokeWidth={2} connectNulls />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-          <div className="flex items-center gap-2 mb-4">
-            <Plus className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold">Log Health Metric</h3>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4 items-end">
-            <div className="w-full sm:w-1/3">
-              <label className="text-sm font-medium text-foreground mb-1 block">Metric Type</label>
-              <select 
-                value={logType} 
-                onChange={(e) => setLogType(e.target.value)}
-                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm"
-              >
-                <option value="Heart Rate">Heart Rate (bpm)</option>
-                <option value="Blood Pressure">Blood Pressure (mmHg)</option>
-                <option value="Sleep">Sleep (hours)</option>
-                <option value="Weight">Weight (kg)</option>
-              </select>
-            </div>
-            <div className="w-full sm:w-1/3">
-              <label className="text-sm font-medium text-foreground mb-1 block">Value</label>
-              <input 
-                type="text" 
-                value={logValue} 
-                onChange={(e) => setLogValue(e.target.value)}
-                placeholder="e.g., 72"
-                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm"
-              />
-            </div>
-            <button 
-              type="button" 
-              onClick={handleLogSubmit}
-              className="w-full sm:w-auto rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Save to AYURA
-            </button>
-          </div>
+          <h3 className="text-lg font-semibold">Today's tasks</h3>
+          <ul className="mt-4 space-y-3">
+            {today.tasks.map((t: any) => (
+              <li key={t.id} className="flex items-center justify-between gap-3 rounded-xl bg-muted/50 p-4">
+                <span className={`text-base ${t.done ? "text-muted-foreground line-through" : ""}`}>{t.title}</span>
+                {t.done ? <CheckCircle2 className="h-6 w-6 text-success" /> :
+                  <Button size="lg" onClick={() => complete(t.id)}>Done</Button>}
+              </li>
+            ))}
+          </ul>
         </div>
+      </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          <StatCard icon={Moon} label="Sleep" value={recentSleep ? `${recentSleep.value}${recentSleep.unit ? ` ${recentSleep.unit}` : ""}` : "7.5h"} sub="Last night" tone="primary" />
-          <StatCard icon={Smile} label="Mood" value="Happy" sub="Self-reported" tone="success" />
-          <StatCard icon={Activity} label="Exercise" value="32 min" sub="Walked 2.1 km" tone="accent" />
-          <StatCard icon={Pill} label="Medication" value="3 / 3" sub="Today taken" tone="success" />
-          <StatCard icon={Droplet} label="Water" value="6 / 8" sub="Glasses today" tone="warning" />
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <ChartCard title="Sleep trend (hours)">
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={sleepData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.01 210)" />
-                <XAxis dataKey="d" stroke="oklch(0.5 0.03 220)" />
-                <YAxis stroke="oklch(0.5 0.03 220)" />
-                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid oklch(0.92 0.01 210)" }} />
-                <Area type="monotone" dataKey="h" stroke="oklch(0.62 0.11 195)" fill="oklch(0.62 0.11 195)" strokeWidth={2.5} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartCard>
-          <ChartCard title="Mood tracking">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={moodData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.01 210)" />
-                <XAxis dataKey="d" stroke="oklch(0.5 0.03 220)" />
-                <YAxis stroke="oklch(0.5 0.03 220)" />
-                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid oklch(0.92 0.01 210)" }} />
-                <Bar dataKey="v" fill="oklch(0.66 0.13 160)" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
+      <div className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-card">
+        <h3 className="text-lg font-semibold">Quick BP check</h3>
+        <p className="text-sm text-muted-foreground">Type today's machine reading. For a full report, go to <Link to="/reports" className="underline">Medical Reports</Link>.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-4">
+          <Input type="number" placeholder="Upper (e.g. 130)" value={bp.systolic_bp} onChange={(e) => setBp({ ...bp, systolic_bp: e.target.value })} className="h-12 text-base" />
+          <Input type="number" placeholder="Lower (e.g. 85)" value={bp.diastolic_bp} onChange={(e) => setBp({ ...bp, diastolic_bp: e.target.value })} className="h-12 text-base" />
+          <Input type="number" placeholder="Pulse (e.g. 72)" value={bp.heart_rate} onChange={(e) => setBp({ ...bp, heart_rate: e.target.value })} className="h-12 text-base" />
+          <Button onClick={quickCheck} disabled={checking} className="h-12 text-base"><Plus className="mr-2 h-5 w-5" />{checking ? "Checking..." : "Check"}</Button>
         </div>
       </div>
     </AppShell>
-  );
-}
-
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-      <h3 className="text-lg font-semibold">{title}</h3>
-      <div className="mt-4">{children}</div>
-    </div>
   );
 }
